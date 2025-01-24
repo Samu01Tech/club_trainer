@@ -31,13 +31,23 @@ const float tolerance = 2.0;      // Allow ±2 variation
 
 // Initial orientation reference
 float initialYaw = 0.0;         // Initial yaw (heading) reference
+float initialPitch = 0.0;
+float initialRoll = 0.0;
 bool isYawReferenceSet = false; // Flag to ensure it's set only once
+
+bool hallInterrupt = false;
+
+void hitDetected(){
+  hallInterrupt = true;
+}
 
 void setup(void)
 {
   pinMode(BUTTON_PIN, INPUT_PULLUP); // Button
   pinMode(LED_PIN, OUTPUT);          // Led
   pinMode(HALL_SENSOR_PIN, INPUT);   // Hall sensor
+
+  attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), hitDetected, LOW);
 
   Serial.begin(115200);
 
@@ -90,7 +100,9 @@ void loop(void)
 
       // Capture initial yaw orientation using magnetometer
       imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-      initialYaw = euler.x(); // 'x' corresponds to yaw in VECTOR_EULER mode
+      initialRoll = euler.x();
+      initialPitch = euler.y();
+      initialYaw = euler.z(); // 'x' corresponds to yaw in VECTOR_EULER mode
       isYawReferenceSet = true;
 
       Serial.print("Initial Yaw: ");
@@ -143,7 +155,9 @@ void loop(void)
   detectClubMovement(accelY, accelZ);
 
   // Hit the ball
-  detectBallHit();
+  if(hallInterrupt){
+    detectBallHit(bno);
+  }
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }
@@ -177,17 +191,12 @@ void detectClubMovement(float accelY, float accelZ)
   }
 }
 
-void detectBallHit()
+void detectBallHit(Adafruit_BNO055 bno)
 {
-  // Detect ball hit using the hall sensor
-  uint8_t hallSensor = digitalRead(HALL_SENSOR_PIN); // Read hall sensor state
 
-  if (hallSensor == LOW) // Ball is hit
-  {
-    Serial.println("HIT 1.0");
-
-    // TODO Play sound hit
-
+    Serial.println("HIT 1");
+    sendData(bno);
+    /*
     // Get the current yaw (rotation angle)
     imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
     float currentYaw = euler.x(); // Extract yaw (rotation around Z-axis)
@@ -219,16 +228,21 @@ void detectBallHit()
       Serial.println("Ball will go STRAIGHT!");
     }
 
-    // Wait for 3 seconds before detecting another hit
+    */
+    hallInterrupt = false;
     delay(3000);
-  }
+    Serial.println("HIT 0");
 }
 
 void recalibrateYawReference()
 {
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  initialYaw = euler.x(); // Reset initial yaw
-  Serial.print("Yaw Reference Recalibrated: ");
+  initialRoll = euler.x();
+  initialPitch = euler.y();
+  initialYaw = euler.z(); // Reset initial yaw
+  Serial.print("Reference Recalibrated: ");
+  Serial.print(initialRoll);
+  Serial.print(initialPitch);
   Serial.println(initialYaw);
 }
 
@@ -375,9 +389,9 @@ void sendData(Adafruit_BNO055 bno)
 {
   // Fetch orientation data
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  float roll = euler.x();  // Roll (angle of rotation about x-axis)
-  float pitch = euler.y(); // Pitch (angle of rotation about y-axis)
-  float yaw = euler.z();   // Yaw (angle of rotation about z-axis)
+  float roll = euler.x() - initialRoll;  // Roll (angle of rotation about x-axis)
+  float pitch = euler.y() - initialPitch; // Pitch (angle of rotation about y-axis)
+  float yaw = euler.z() - initialYaw;   // Yaw (angle of rotation about z-axis)
 
   // Fetch acceleration data
   imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
