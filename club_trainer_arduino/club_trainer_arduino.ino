@@ -5,16 +5,39 @@
 #include <EEPROM.h>
 
 #define EEPROM_ADDRESS 0
-#define LED_PIN 3
 #define BUTTON_PIN 2
+#define LED_PIN 3
 #define HALL_SENSOR_PIN 4
+#define BLINK_INTERVAL 250
+
+// hand position
+#define BUTTON_TRIGGER 5
+#define LED_UP 7
+#define LED_CENTER 8
+#define LED_DOWN 9
+#define RIBBON_SENSOR A0
+#define RIBBON_CENTRAL_VALUE 34
+#define RIBBON_TOLERANCE 0.1
+
+// hand vibration
+#define VIBRATOR 6
+#define HAPTIC_FEEDBACK true
+
+// hand orientation
+#define LED_LEFT 10
+#define LED_CENTER 11
+#define LED_RIGHT 12
+
+// constants
+#define BNO055_SAMPLERATE_DELAY_MS 100
+#define DEBUG_BUTTON_DEBOUNCE_DELAY 500
+
 
 // BNO055 sensor
-uint16_t BNO055_SAMPLERATE_DELAY_MS = 100;
+
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
 
 // debugButton
-const int debugButtonDebounceDelay = 500;
 unsigned long debugButtonLastDebounceTime = 0;
 
 // IMU calibration status
@@ -22,7 +45,6 @@ bool isIMUCalibrated = false;
 
 // blinkLedFastNonBlocking variables
 static unsigned long blinkLedFastNonBlockingPreviousMillis = 0;
-bool blinkLedFastNonBlockingState = LOW;
 
 // clubMovement thresholds
 const float baseYThreshold = 9.0; // Base position (club down)
@@ -46,6 +68,14 @@ void setup(void)
   pinMode(BUTTON_PIN, INPUT_PULLUP); // Button
   pinMode(LED_PIN, OUTPUT);          // Led
   pinMode(HALL_SENSOR_PIN, INPUT);   // Hall sensor
+  
+  // high club part
+  pinMode(BUTTON_TRIGGER, INPUT_PULLUP);
+  pinMode(RIBBON_SENSOR, INPUT);
+  pinMode(LED_UP, OUTPUT);
+  pinMode(LED_CENTER, OUTPUT);
+  pinMode(LED_DOWN, OUTPUT);
+  pinMode(VIBRATOR, OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), hitDetected, LOW);
 
@@ -84,42 +114,21 @@ void setup(void)
   Serial.println("Ready!");
 }
 
+
+
 void loop(void)
 {
-  while (!isIMUCalibrated) // Calibrate IMU
-  {
-    blinkLedFastNonBlocking();
-    uint8_t system, gyro, accel, mag = 0;
-    bno.getCalibration(&system, &gyro, &accel, &mag);
-
-    printCalibration(system, gyro, accel, mag);
-
-    if (system == 3 && gyro == 3 && accel == 3 && mag == 3)
-    {
-      saveCalibration();
-
-      // Capture initial yaw orientation using magnetometer
-      imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-      initialRoll = euler.x();
-      initialPitch = euler.y();
-      initialYaw = euler.z(); // 'x' corresponds to yaw in VECTOR_EULER mode
-      isYawReferenceSet = true;
-
-      Serial.print("Initial Yaw: ");
-      Serial.println(initialYaw);
-
-      isIMUCalibrated = true;
-      digitalWrite(LED_PIN, HIGH); // Set LED stable
-    }
+  if (!isIMUCalibrated){
+    IMUcalibration();
   }
 
   sendData(bno);
 
-  // Button to DEBUG accelerometer, gyroscope and linear acceleration data
-  /*
+  /* Button to DEBUG accelerometer, gyroscope and linear acceleration data
+  
     Press the button to print accelerometer, gyroscope and linear acceleration data
     and know the current status of the sensor
-  */
+  
   // if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > debugButtonDebounceDelay))
   // {
   //   debugButtonLastDebounceTime = millis();
@@ -134,7 +143,7 @@ void loop(void)
   //   printEvent(&linearAccelData);
   //   printEvent(&angVelocityData);
   //   printEvent(&accelerometerData);
-  // }
+  // }*/
 
   // Button to recalibrate reference
   if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > debugButtonDebounceDelay))
@@ -158,6 +167,31 @@ void loop(void)
   if(hallInterrupt){
     detectBallHit(bno);
   }
+
+  // high club part
+  if(digitalRead(BUTTON_TRIGGER) == LOW){
+    float ribbon_v = digitalRead(RIBBON_SENSOR) - RIBBON_CENTRAL_VALUE;
+    switch(true){
+      case ribbon_v > RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE:
+        digitalWrite(LED_UP, HIGH);
+        digitalWrite(LED_CENTER, LOW);
+        digitalWrite(LED_DOWN, LOW);
+        break;
+      case ribbon_v < -RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE:
+        digitalWrite(LED_UP, LOW);
+        digitalWrite(LED_CENTER, LOW);
+        digitalWrite(LED_DOWN, HIGH);
+        break;
+      default:
+        digitalWrite(LED_UP, LOW);
+        digitalWrite(LED_CENTER, HIGH);
+        digitalWrite(LED_DOWN, LOW);
+        break;
+    }
+
+    
+  }
+
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }
@@ -187,7 +221,6 @@ void detectClubMovement(float accelY, float accelZ)
     Serial.println("DOWN 1.0");
     isUp = false; // Update state
 
-    // TODO Play sound down
   }
 }
 
@@ -230,7 +263,66 @@ void detectBallHit(Adafruit_BNO055 bno)
 
     */
     hallInterrupt = false;
-    delay(3000);
+
+    // feedback about roll X
+    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+
+    // here vibration motor (or managed by message via UART?)
+    if(HAPTIC_FEEDBACK){
+      analogWrite(VIBRATOR, 200);
+      delay(200);
+      analogWrite(VIBRATOR, 0);
+    }
+
+
+    float roll = euler.x() - initialRoll;
+    roll = roll > 180 ? roll - 360 : (roll < -180 ? roll + 360 : roll);
+    if (roll > 10.0) // Right threshold
+    {
+      digitalWrite(LED_RIGHT, HIGH);
+      delay(200);
+      digitalWrite(LED_RIGHT, LOW);
+      delay(200);
+      digitalWrite(LED_RIGHT, HIGH);
+      dely(200);
+      digitalWrite(LED_RIGHT, LOW);
+      delay(200);
+      digitalWrite(LED_RIGHT, HIGH);
+      dely(200);
+      digitalWrite(LED_RIGHT, LOW);
+      
+    }
+    else if (roll < -10.0) // Left threshold
+    {
+      digitalWrite(LED_LEFT, HIGH);
+      delay(200);
+      digitalWrite(LED_LEFT, LOW);
+      delay(200);
+      digitalWrite(LED_LEFT, HIGH);
+      dely(200);
+      digitalWrite(LED_LEFT, LOW);
+      delay(200);
+      digitalWrite(LED_LEFT, HIGH);
+      dely(200);
+      digitalWrite(LED_LEFT, LOW);
+    }
+    else
+    {
+      digitalWrite(LED_CENTER, HIGH);
+      delay(200);
+      digitalWrite(LED_CENTER, LOW);
+      delay(200);
+      digitalWrite(LED_CENTER, HIGH);
+      dely(200);
+      digitalWrite(LED_CENTER, LOW);
+      delay(200);
+      digitalWrite(LED_CENTER, HIGH);
+      dely(200);
+      digitalWrite(LED_CENTER, LOW);
+    }
+
+
+    delay(2000);
     Serial.println("HIT 0");
 }
 
@@ -277,6 +369,37 @@ bool checkCalibrationSaved()
   return EEPROM.read(EEPROM_ADDRESS + 22) == 1; // Check flag byte
 }
 
+// Function to calibrate IMU
+void IMUcalibration()
+{
+  while (!isIMUCalibrated) // Calibrate IMU
+  {
+    blinkLedFastNonBlocking();
+    uint8_t system, gyro, accel, mag = 0;
+    bno.getCalibration(&system, &gyro, &accel, &mag);
+
+    printCalibration(system, gyro, accel, mag);
+
+    if (system == 3 && gyro == 3 && accel == 3 && mag == 3)
+    {
+      saveCalibration();
+
+      // Capture initial yaw orientation using magnetometer
+      imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+      initialRoll = euler.x();
+      initialPitch = euler.y();
+      initialYaw = euler.z(); // 'x' corresponds to yaw in VECTOR_EULER mode
+      isYawReferenceSet = true;
+
+      Serial.print("Initial Yaw: ");
+      Serial.println(initialYaw);
+
+      isIMUCalibrated = true;
+      digitalWrite(LED_PIN, HIGH); // Set LED stable
+    }
+  }
+}
+
 // Function to clear EEPROM
 void clearEEPROM()
 {
@@ -289,24 +412,15 @@ void clearEEPROM()
 }
 
 // Function to blink LED fast non-blocking
-void blinkLedFastNonBlocking()
-{
+void blinkLedFastNonBlocking(){
   unsigned long currentMillis = millis();
 
-  if (currentMillis - blinkLedFastNonBlockingPreviousMillis >= 250)
-  {
-    blinkLedFastNonBlockingPreviousMillis = currentMillis;
+  if (currentMillis - blinkLedFastNonBlockingPreviousMillis < BLINK_INTERVAL)
+    return;
 
-    if (blinkLedFastNonBlockingState == LOW)
-    {
-      blinkLedFastNonBlockingState = HIGH;
-    }
-    else
-    {
-      blinkLedFastNonBlockingState = LOW;
-    }
-    digitalWrite(LED_PIN, blinkLedFastNonBlockingState);
-  }
+  blinkPreviousMillis = currentMillis;
+  digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+  
 }
 
 void printCalibration(uint8_t system, uint8_t gyro, uint8_t accel, uint8_t mag)
