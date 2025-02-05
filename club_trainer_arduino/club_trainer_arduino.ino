@@ -17,7 +17,7 @@
 #define LED_DOWN 9
 #define RIBBON_SENSOR A0
 #define RIBBON_CENTRAL_VALUE 34
-#define RIBBON_TOLERANCE 0.1
+float RIBBON_TOLERANCE = 0.1;
 
 // hand vibration
 #define VIBRATOR 6
@@ -25,7 +25,7 @@
 
 // hand orientation
 #define LED_LEFT 10
-#define LED_CENTER 11
+#define LED_STRAIGHT 11
 #define LED_RIGHT 12
 
 // constants
@@ -61,139 +61,6 @@ bool hallInterrupt = false;
 
 void hitDetected(){
   hallInterrupt = true;
-}
-
-void setup(void)
-{
-  pinMode(BUTTON_PIN, INPUT_PULLUP); // Button
-  pinMode(LED_PIN, OUTPUT);          // Led
-  pinMode(HALL_SENSOR_PIN, INPUT);   // Hall sensor
-  
-  // high club part
-  pinMode(BUTTON_TRIGGER, INPUT_PULLUP);
-  pinMode(RIBBON_SENSOR, INPUT);
-  pinMode(LED_UP, OUTPUT);
-  pinMode(LED_CENTER, OUTPUT);
-  pinMode(LED_DOWN, OUTPUT);
-  pinMode(VIBRATOR, OUTPUT);
-
-  attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), hitDetected, LOW);
-
-  Serial.begin(115200);
-
-  while (!Serial)
-    delay(10); // wait for serial port to open!
-
-  // Initialize BNO055 sensor
-  if (!bno.begin())
-  {
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-    while (1)
-      ;
-  }
-
-  bno.setExtCrystalUse(true);       // Use external crystal for better accuracy
-  bno.setMode(OPERATION_MODE_NDOF); // Set sensor mode to NDOF
-
-  // To clear EEPROM uncomment the following line
-  // clearEEPROM();
-
-  // Load calibration from EEPROM
-  if (checkCalibrationSaved())
-  {
-    loadCalibration();
-    isIMUCalibrated = true;
-  }
-  else
-  {
-    isIMUCalibrated = false;
-    Serial.println("No saved calibration found.");
-  }
-
-  delay(1000);
-  Serial.println("Ready!");
-}
-
-
-
-void loop(void)
-{
-  if (!isIMUCalibrated){
-    IMUcalibration();
-  }
-
-  sendData(bno);
-
-  /* Button to DEBUG accelerometer, gyroscope and linear acceleration data
-  
-    Press the button to print accelerometer, gyroscope and linear acceleration data
-    and know the current status of the sensor
-  
-  // if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > debugButtonDebounceDelay))
-  // {
-  //   debugButtonLastDebounceTime = millis();
-
-  //   // Process sensor events
-  //   sensors_event_t angVelocityData, linearAccelData, accelerometerData;
-  //   bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
-  //   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-  //   bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
-
-  //   // Print data
-  //   printEvent(&linearAccelData);
-  //   printEvent(&angVelocityData);
-  //   printEvent(&accelerometerData);
-  // }*/
-
-  // Button to recalibrate reference
-  if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > debugButtonDebounceDelay))
-  {
-    debugButtonLastDebounceTime = millis();
-    recalibrateYawReference();
-  }
-
-  // Process sensor events
-  sensors_event_t accelerometerData;
-  bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
-
-  // Extract Y and Z axes from accelerometer
-  float accelY = accelerometerData.acceleration.y;
-  float accelZ = accelerometerData.acceleration.z;
-
-  // Detect movement
-  detectClubMovement(accelY, accelZ);
-
-  // Hit the ball
-  if(hallInterrupt){
-    detectBallHit(bno);
-  }
-
-  // high club part
-  if(digitalRead(BUTTON_TRIGGER) == LOW){
-    float ribbon_v = digitalRead(RIBBON_SENSOR) - RIBBON_CENTRAL_VALUE;
-    switch(true){
-      case ribbon_v > RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE:
-        digitalWrite(LED_UP, HIGH);
-        digitalWrite(LED_CENTER, LOW);
-        digitalWrite(LED_DOWN, LOW);
-        break;
-      case ribbon_v < -RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE:
-        digitalWrite(LED_UP, LOW);
-        digitalWrite(LED_CENTER, LOW);
-        digitalWrite(LED_DOWN, HIGH);
-        break;
-      default:
-        digitalWrite(LED_UP, LOW);
-        digitalWrite(LED_CENTER, HIGH);
-        digitalWrite(LED_DOWN, LOW);
-        break;
-    }
-
-    
-  }
-
-
-  delay(BNO055_SAMPLERATE_DELAY_MS);
 }
 
 void detectClubMovement(float accelY, float accelZ)
@@ -284,11 +151,11 @@ void detectBallHit(Adafruit_BNO055 bno)
       digitalWrite(LED_RIGHT, LOW);
       delay(200);
       digitalWrite(LED_RIGHT, HIGH);
-      dely(200);
+      delay(200);
       digitalWrite(LED_RIGHT, LOW);
       delay(200);
       digitalWrite(LED_RIGHT, HIGH);
-      dely(200);
+      delay(200);
       digitalWrite(LED_RIGHT, LOW);
       
     }
@@ -299,26 +166,26 @@ void detectBallHit(Adafruit_BNO055 bno)
       digitalWrite(LED_LEFT, LOW);
       delay(200);
       digitalWrite(LED_LEFT, HIGH);
-      dely(200);
+      delay(200);
       digitalWrite(LED_LEFT, LOW);
       delay(200);
       digitalWrite(LED_LEFT, HIGH);
-      dely(200);
+      delay(200);
       digitalWrite(LED_LEFT, LOW);
     }
     else
     {
-      digitalWrite(LED_CENTER, HIGH);
+      digitalWrite(LED_STRAIGHT, HIGH);
       delay(200);
-      digitalWrite(LED_CENTER, LOW);
+      digitalWrite(LED_STRAIGHT, LOW);
       delay(200);
-      digitalWrite(LED_CENTER, HIGH);
-      dely(200);
-      digitalWrite(LED_CENTER, LOW);
+      digitalWrite(LED_STRAIGHT, HIGH);
       delay(200);
-      digitalWrite(LED_CENTER, HIGH);
-      dely(200);
-      digitalWrite(LED_CENTER, LOW);
+      digitalWrite(LED_STRAIGHT, LOW);
+      delay(200);
+      digitalWrite(LED_STRAIGHT, HIGH);
+      delay(200);
+      digitalWrite(LED_STRAIGHT, LOW);
     }
 
 
@@ -370,7 +237,7 @@ bool checkCalibrationSaved()
 }
 
 // Function to calibrate IMU
-void IMUcalibration()
+void IMUcalibration(Adafruit_BNO055 bno)
 {
   while (!isIMUCalibrated) // Calibrate IMU
   {
@@ -418,7 +285,7 @@ void blinkLedFastNonBlocking(){
   if (currentMillis - blinkLedFastNonBlockingPreviousMillis < BLINK_INTERVAL)
     return;
 
-  blinkPreviousMillis = currentMillis;
+  blinkLedFastNonBlockingPreviousMillis = currentMillis;
   digitalWrite(LED_PIN, !digitalRead(LED_PIN));
   
 }
@@ -555,3 +422,135 @@ void sendData(Adafruit_BNO055 bno)
   Serial.print("SwingPower ");
   Serial.println(swingPower);
 }
+
+void setup(void)
+{
+  pinMode(BUTTON_PIN, INPUT_PULLUP); // Button
+  pinMode(LED_PIN, OUTPUT);          // Led
+  pinMode(HALL_SENSOR_PIN, INPUT);   // Hall sensor
+  
+  // high club part
+  pinMode(BUTTON_TRIGGER, INPUT_PULLUP);
+  pinMode(RIBBON_SENSOR, INPUT);
+  pinMode(LED_UP, OUTPUT);
+  pinMode(LED_CENTER, OUTPUT);
+  pinMode(LED_DOWN, OUTPUT);
+  pinMode(VIBRATOR, OUTPUT);
+
+  attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), hitDetected, LOW);
+
+  Serial.begin(115200);
+  Serial.println("CIAO");
+
+  while (!Serial)
+    delay(10); // wait for serial port to open!
+
+  // Initialize BNO055 sensor
+  if (!bno.begin())
+  {
+    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    while (1)
+      ;
+  }
+
+  bno.setExtCrystalUse(true);       // Use external crystal for better accuracy
+  bno.setMode(OPERATION_MODE_NDOF); // Set sensor mode to NDOF
+
+  // To clear EEPROM uncomment the following line
+  // clearEEPROM();
+
+  // Load calibration from EEPROM
+  if (checkCalibrationSaved())
+  {
+    loadCalibration();
+    isIMUCalibrated = true;
+  }
+  else
+  {
+    isIMUCalibrated = false;
+    Serial.println("No saved calibration found.");
+  }
+
+  delay(1000);
+  Serial.println("Ready!");
+}
+
+
+
+void loop(void)
+{
+  if (!isIMUCalibrated){
+    IMUcalibration(bno);
+  }
+
+  sendData(bno);
+
+  /* Button to DEBUG accelerometer, gyroscope and linear acceleration data
+  
+    Press the button to print accelerometer, gyroscope and linear acceleration data
+    and know the current status of the sensor
+  
+  // if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > debugButtonDebounceDelay))
+  // {
+  //   debugButtonLastDebounceTime = millis();
+
+  //   // Process sensor events
+  //   sensors_event_t angVelocityData, linearAccelData, accelerometerData;
+  //   bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
+  //   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
+  //   bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+
+  //   // Print data
+  //   printEvent(&linearAccelData);
+  //   printEvent(&angVelocityData);
+  //   printEvent(&accelerometerData);
+  // }*/
+
+  // Button to recalibrate reference
+  if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > 500))
+  {
+    debugButtonLastDebounceTime = millis();
+    recalibrateYawReference();
+  }
+
+  // Process sensor events
+  sensors_event_t accelerometerData;
+  bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+
+  // Extract Y and Z axes from accelerometer
+  float accelY = accelerometerData.acceleration.y;
+  float accelZ = accelerometerData.acceleration.z;
+
+  // Detect movement
+  detectClubMovement(accelY, accelZ);
+
+  // Hit the ball
+  if(hallInterrupt){
+    detectBallHit(bno);
+  }
+
+  // high club part
+  if(digitalRead(BUTTON_TRIGGER) == LOW){
+    float ribbon_v = digitalRead(RIBBON_SENSOR) - RIBBON_CENTRAL_VALUE;
+      if (ribbon_v > RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE){
+        digitalWrite(LED_UP, HIGH);
+        digitalWrite(LED_CENTER, LOW);
+        digitalWrite(LED_DOWN, LOW);
+
+      }
+      else if (ribbon_v < -RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE){
+
+        digitalWrite(LED_UP, LOW);
+        digitalWrite(LED_CENTER, LOW);
+        digitalWrite(LED_DOWN, HIGH);
+      } else {
+        digitalWrite(LED_UP, LOW);
+        digitalWrite(LED_CENTER, HIGH);
+        digitalWrite(LED_DOWN, LOW);
+      }
+  }
+
+
+  delay(BNO055_SAMPLERATE_DELAY_MS);
+}
+

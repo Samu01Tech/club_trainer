@@ -9,109 +9,107 @@
 import controlP5.*; 
 import oscP5.*;
 import netP5.*;
+import java.util.Arrays;
   
 OscP5 oscP5;
 NetAddress myRemoteLocation;
 
 ControlP5 cp5;
 
-Knob deg_launch_angle;
+Knob launch_angle;
 Slider bar_roll;
-Slider bar_pitch;
-Slider bar_yaw;
+Slider2D end_rotation;
+Slider swing_rotation;
+Slider launch_power;
+Textlabel results_table;
+
+Group row_1;
+int row_2 = 450;
 
 ArrayList<String> valueList;
 
-int bar_row = 80;
+final int WINDOW_WIDTH = 1024;
+final int WINDOW_HEIGHT = 768;
+
+int BACKGROUND_COLOR = #100F0F;
+int FOREGROUND_COLOR = #FFFCF0;
+int GREEN = #879A39;
+int RED = #D14D41;
+int BLUE = #4385BE;
+
+int MIN_SWING_HEIGHT = 0;
+int MAX_SWING_HEIGHT = 160;
+int MAX_PITCH = 50;
+int MIN_PITCH = -50;
 
 void setup() {
-  size(900,700);
+  size(1024,768);
   
   oscP5 = new OscP5(this,32000); /* start oscP5, listening for incoming messages at port 12000 */
   myRemoteLocation = new NetAddress("127.0.0.1",12000);
   
   
   cp5 = new ControlP5(this);
-  cp5.setFont(createFont("Inter",16));
-  
-      
-  // add a vertical slider
-  bar_roll = cp5.addSlider("bar_roll")
-     .setPosition(100, bar_row)
-     .setSize(20,200)
-     .setRange(90,270)
-     .setValue(0)
-     .setColorBackground(color(#C9FCE8))
-     .setColorForeground(color(#1FDB8E))
-     .setColorActive(color(#1FDB8E))
-     ;       
- 
+  cp5.setFont(createFont("Arial",16));
+
+  row_1 = cp5.addGroup("Row 1").setPosition(WINDOW_WIDTH/2 - 250, 100).hideBar();
+   
+    end_rotation = cp5.addSlider2D("End Rotation")
+          .setSize(400,200)
+          .setGroup(row_1)
+          .setMaxX(100)
+          .setMinX(0)
+          .setMaxY(10)
+          .setMinY(0)
+          ;
      
-  // add a vertical slider
-  bar_pitch = cp5.addSlider("bar_pitch")
-     .setPosition(200,bar_row)
-     .setSize(20,200)
-     .setRange(0,-200)
+    swing_rotation = cp5.addSlider("Swing Rotation")
+      .setPosition(450,0)
+     .setSize(50,200)
+     .setRange(MIN_SWING_HEIGHT, MAX_SWING_HEIGHT)
      .setValue(0)
-     .setColorBackground(color(#C9FCE8))
-     .setColorForeground(color(#1FDB8E))
-     .setColorActive(color(#1FDB8E))
-     ;      
-     
-    bar_yaw = cp5.addSlider("bar_yaw")
-     .setPosition(300,bar_row)
-     .setSize(20,200)
-     .setRange(-20,20)
-     .setValue(0)
-     .setColorBackground(color(#C9FCE8))
-     .setColorForeground(color(#1FDB8E))
-     .setColorActive(color(#1FDB8E))
+     .setColorBackground(FOREGROUND_COLOR)
+     .setGroup(row_1)
      ;    
+
+    // row_2 = cp5.addGroup("Row 2").setPosition(WINDOW_WIDTH/2 - 400, 450).hideBar();
      
-    deg_launch_angle = cp5.addKnob("deg_launch_angle")  // Define the knob function name
-    .setPosition(110, bar_row + 250)  // Knob position
+    launch_angle = cp5.addKnob("Launch Angle")  // Define the knob function name
+    .setPosition(50, row_2)  // Knob position
     .setSize(200, 200)  // Knob size
     .setRange(-50, 50)  // Set knob range to -50 to 50 degrees
     .setValue(0)  // Initial value at the center (0 degrees)
     .setNumberOfTickMarks(10)  // Set the number of tick marks
     .setColorForeground(color(#1FDB8E))  // Set the knob color
     ;
-  
+
+    launch_power = cp5.addSlider("Launch Power")
+      .setPosition(300,row_2)
+     .setSize(50,200)
+     .setRange(MIN_SWING_HEIGHT, MAX_SWING_HEIGHT)
+     .setValue(0)
+     .setColorBackground(FOREGROUND_COLOR)
+     ;   
 
      
-  oscP5.plug(this,"roll","/roll");   
-  oscP5.plug(this,"pitch","/pitch");   
-  oscP5.plug(this,"yaw","/yaw");   
-  oscP5.plug(this,"launch_angle","/launch_angle");      
+  oscP5.plug(this,"setEndPitch","/end_pitch");   
+  oscP5.plug(this,"setSwingRotation","/swing_rotation");   
+  oscP5.plug(this,"setLaunchAngle","/launch_angle");      
+  oscP5.plug(this,"setLaunchPower","/launch_power");      
 
   valueList = new ArrayList<String>();  
+  valueList.add("10, 10, 10");
 }
 
 void draw() {
-  background(0);  
+  background(color(BACKGROUND_COLOR));  
   
   textSize(28);
-  textAlign(LEFT, TOP);
-  fill(color(#C9FCE8));
-  text("ClubTrainer", 100, 30);
+  textAlign(CENTER);
+  fill(FOREGROUND_COLOR);
+  text("ClubTrainer", WINDOW_WIDTH/2, 50);
 
-  float current_pitch = bar_pitch.getValue();
-  // Set the active color based on the value of the angle
-  if (current_pitch < -170) {
-    bar_pitch.setColorForeground(color(#db2e1e)); // Red for values over 30
-  }  else {
-    bar_pitch.setColorForeground(color(#1FDB8E)); // Green for values between -30 and 30
-  }
-
-  // Set red for angles over 30 degrees or under -30 degrees
-  float current_angle = deg_launch_angle.getValue();
-  if (current_angle > 30 || current_angle < -30) {
-    deg_launch_angle.setColorForeground(color(#db2e1e));
-  } else {
-    deg_launch_angle.setColorForeground(color(#1FDB8E));
-  }
-
-    // Display the list of last 5 values
+  // Display the list of last 5 values
   displayValueTable();
 }
 
@@ -120,31 +118,40 @@ void roll(float input_value) {
 }
 
 
-void pitch(float input_value) {
-  cp5.getController("bar_pitch").setValue(input_value);   
+void setEndPitch(float input_value) {
+  end_rotation.setArrayValue(new float[] {input_value, 5}); 
 }
 
 
-void yaw(float input_value) {
-  cp5.getController("bar_yaw").setValue(input_value);   
+void setSwingRotation(float input_value) {
+  swing_rotation.setValue(input_value);   
+
+  // Set the active color based on the value of the angle
+  if (input_value > (MAX_SWING_HEIGHT-20)) {
+    swing_rotation.setColorForeground(RED);
+  }  else {
+    swing_rotation.setColorForeground(GREEN);
+  }
 }
 
+void setLaunchPower(float input_value) {
+  launch_power.setValue(input_value);   
+}
 
-void launch_angle(float input_value) {
-  cp5.getController("deg_launch_angle").setValue(input_value);   
+void setLaunchAngle(float input_value) {
+  launch_angle.setValue(input_value);   
 
   // get the current values 
-  float roll = cp5.getController("bar_roll").getValue();
-  float pitch = cp5.getController("bar_pitch").getValue();
-  float yaw = cp5.getController("bar_yaw").getValue();
-  float launch_angle = cp5.getController("deg_launch_angle").getValue();
+  float pitch = cp5.getController("end_rotation").getValue();
+  float yaw = swing_rotation.getValue();
+  float c = launch_angle.getValue();
 
-  addToList(roll, pitch, yaw, launch_angle);
+  addToList(pitch, yaw, c);
 }
 
-void addToList(float roll, float pitch, float yaw, float launch_angle) {
+void addToList(float pitch, float yaw, float launch_angle) {
   // Format the entry as a string
-  String entry = round(roll) + "," + round(pitch) + "," + round(yaw) + "," + round(launch_angle);
+  String entry = round(pitch) + "," + round(yaw) + "," + round(launch_angle);
   
   // Add the entry to the list
   valueList.add(entry);
@@ -162,19 +169,19 @@ void displayValueTable() {
   textAlign(LEFT, TOP);
 
 
-  float xPos = 400;  // Starting position for columns
-  float yPos = bar_row;  // Starting position for headers
-  float columnSpacing = 70; // Adjust spacing between columns
+  float xPos = 450;  // Starting position for columns
+  float yPos = row_2;  // Starting position for headers
+  float columnSpacing = 120; // Adjust spacing between columns
   
-  text("Last 5 launches", 400, bar_row);  // Display the title
+  text("Last 5 launches", xPos, yPos);  // Display the title
+
 
   textSize(16);
   yPos += 30;
   // Display headers in columns
-  text("Roll", xPos, yPos);
-  text("Pitch", xPos + columnSpacing, yPos);
-  text("Yaw", xPos + 2 * columnSpacing, yPos);
-  text("Launch Angle", xPos + 3 * columnSpacing, yPos);
+  text("Pitch", xPos + 0 * columnSpacing, yPos);
+  text("Swing Rotation", xPos + 1 * columnSpacing, yPos);
+  text("Launch Angle", xPos + 2 * columnSpacing, yPos);
 
   yPos += 30;
     
