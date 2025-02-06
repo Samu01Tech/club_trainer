@@ -14,10 +14,10 @@
 #define BUTTON_TRIGGER 5
 #define LED_UP 7
 #define LED_CENTER 8
-#define LED_DOWN 9
+#define LED_DOWN 12
 #define RIBBON_SENSOR A0
-#define RIBBON_CENTRAL_VALUE 34
-float RIBBON_TOLERANCE = 0.1;
+#define RIBBON_CENTRAL_VALUE 700
+#define RIBBON_TOLERANCE 0.1
 
 // hand vibration
 #define VIBRATOR 6
@@ -26,7 +26,7 @@ float RIBBON_TOLERANCE = 0.1;
 // hand orientation
 #define LED_LEFT 10
 #define LED_STRAIGHT 11
-#define LED_RIGHT 12
+#define LED_RIGHT 9
 
 // constants
 #define BNO055_SAMPLERATE_DELAY_MS 100
@@ -144,8 +144,11 @@ void detectBallHit(Adafruit_BNO055 bno)
 
     float roll = euler.x() - initialRoll;
     roll = roll > 180 ? roll - 360 : (roll < -180 ? roll + 360 : roll);
-    if (roll > 10.0) // Right threshold
+    Serial.print("ROLL: ");
+    Serial.println(roll);
+    if (roll > 1.0) // Right threshold
     {
+      Serial.println("DESTRA");
       digitalWrite(LED_RIGHT, HIGH);
       delay(200);
       digitalWrite(LED_RIGHT, LOW);
@@ -157,12 +160,12 @@ void detectBallHit(Adafruit_BNO055 bno)
       digitalWrite(LED_RIGHT, HIGH);
       delay(200);
       digitalWrite(LED_RIGHT, LOW);
-      
     }
-    else if (roll < -10.0) // Left threshold
+    else if (roll < -1.0) // Left threshold
     {
+      Serial.println("SINISTRA");
       digitalWrite(LED_LEFT, HIGH);
-      delay(200);
+      delay(1000);
       digitalWrite(LED_LEFT, LOW);
       delay(200);
       digitalWrite(LED_LEFT, HIGH);
@@ -435,6 +438,9 @@ void setup(void)
   pinMode(LED_UP, OUTPUT);
   pinMode(LED_CENTER, OUTPUT);
   pinMode(LED_DOWN, OUTPUT);
+  pinMode(LED_LEFT, OUTPUT);
+  pinMode(LED_STRAIGHT, OUTPUT);
+  pinMode(LED_RIGHT, OUTPUT);
   pinMode(VIBRATOR, OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), hitDetected, LOW);
@@ -528,10 +534,10 @@ void loop(void)
   if(hallInterrupt){
     detectBallHit(bno);
   }
-
+  Serial.println(analogRead(RIBBON_SENSOR));
   // high club part
-  if(digitalRead(BUTTON_TRIGGER) == LOW){
-    float ribbon_v = digitalRead(RIBBON_SENSOR) - RIBBON_CENTRAL_VALUE;
+  if(digitalRead(BUTTON_TRIGGER) == HIGH){
+    float ribbon_v = analogRead(RIBBON_SENSOR) - RIBBON_CENTRAL_VALUE;
       if (ribbon_v > RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE){
         digitalWrite(LED_UP, HIGH);
         digitalWrite(LED_CENTER, LOW);
@@ -548,6 +554,11 @@ void loop(void)
         digitalWrite(LED_CENTER, HIGH);
         digitalWrite(LED_DOWN, LOW);
       }
+  } else {
+    digitalWrite(LED_UP, LOW);
+        digitalWrite(LED_CENTER, LOW);
+        digitalWrite(LED_DOWN, LOW);
+      
   }
 
 

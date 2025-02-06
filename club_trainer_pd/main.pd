@@ -1,4 +1,4 @@
-#N canvas 1274 4 633 1020 10;
+#N canvas 955 4 1920 1037 10;
 #X msg 359 88 close;
 #X msg 301 88 devices;
 #X floatatom 408 64 5 0 0 0 - - - 0;
@@ -247,10 +247,10 @@
 #X obj 582 681 r hit_detected;
 #X msg 601 755 /launch_power \$1;
 #X obj 411 584 clip -50 50;
-#X obj 418 612 cyclone/scale -50 50 100 0;
 #X msg 479 756 /swing_rotation \$1;
 #X msg 390 711 /end_pitch \$1;
-#X msg 408 41 3;
+#X msg 408 41 7;
+#X obj 418 612 cyclone/scale -50 50 0 100;
 #X connect 0 0 4 0;
 #X connect 1 0 4 0;
 #X connect 2 0 3 0;
@@ -269,7 +269,7 @@
 #X connect 14 0 15 0;
 #X connect 15 0 49 0;
 #X connect 16 0 17 0;
-#X connect 17 0 167 0;
+#X connect 17 0 166 0;
 #X connect 17 0 53 0;
 #X connect 18 0 19 0;
 #X connect 20 0 21 0;
@@ -373,8 +373,8 @@
 #X connect 162 0 164 0;
 #X connect 163 0 162 1;
 #X connect 164 0 40 0;
-#X connect 165 0 166 0;
-#X connect 166 0 168 0;
+#X connect 165 0 169 0;
+#X connect 166 0 40 0;
 #X connect 167 0 40 0;
-#X connect 168 0 40 0;
-#X connect 169 0 2 0;
+#X connect 168 0 2 0;
+#X connect 169 0 167 0;
