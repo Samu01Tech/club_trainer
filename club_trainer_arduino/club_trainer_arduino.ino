@@ -32,7 +32,6 @@
 #define BNO055_SAMPLERATE_DELAY_MS 100
 #define DEBUG_BUTTON_DEBOUNCE_DELAY 500
 
-
 // BNO055 sensor
 
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
@@ -52,14 +51,15 @@ const float upZThreshold = -9.0;  // Club raised (up)
 const float tolerance = 2.0;      // Allow ±2 variation
 
 // Initial orientation reference
-float initialYaw = 0.0;         // Initial yaw (heading) reference
+float initialYaw = 0.0; // Initial yaw (heading) reference
 float initialPitch = 0.0;
 float initialRoll = 0.0;
 bool isYawReferenceSet = false; // Flag to ensure it's set only once
 
 bool hallInterrupt = false;
 
-void hitDetected(){
+void hitDetected()
+{
   hallInterrupt = true;
 }
 
@@ -79,121 +79,82 @@ void detectClubMovement(float accelY, float accelZ)
     // Club is being raised
     Serial.println("UP 1.0");
     isUp = true; // Update state
-
-    // TODO Play sound up
   }
   else if (isUp && atBase)
   {
     // Club is going down
     Serial.println("DOWN 1.0");
     isUp = false; // Update state
-
   }
 }
 
 void detectBallHit(Adafruit_BNO055 bno)
 {
 
-    Serial.println("HIT 1");
-    sendData(bno);
-    /*
-    // Get the current yaw (rotation angle)
-    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-    float currentYaw = euler.x(); // Extract yaw (rotation around Z-axis)
+  Serial.println("HIT 1.0");
+  sendData(bno);
 
-    // Calculate relative yaw based on the initial calibration
-    float relativeYaw = currentYaw - initialYaw;
+  hallInterrupt = false;
 
-    // Normalize yaw to handle wrap-around (0–360 degrees)
-    if (relativeYaw < -180)
-      relativeYaw += 360;
-    if (relativeYaw > 180)
-      relativeYaw -= 360;
+  // feedback about roll X
+  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
 
-    // Print yaw angle for debugging
-    Serial.print("LaunchAngle ");
-    Serial.println(relativeYaw);
+  // here vibration motor (or managed by message via UART?)
+  if (HAPTIC_FEEDBACK)
+  {
+    analogWrite(VIBRATOR, 200);
+    delay(200);
+    analogWrite(VIBRATOR, 0);
+  }
 
-    // Determine the direction of the ball based on yaw
-    if (relativeYaw > 10.0) // Right threshold
-    {
-      Serial.println("Ball will go RIGHT!");
-    }
-    else if (relativeYaw < -10.0) // Left threshold
-    {
-      Serial.println("Ball will go LEFT!");
-    }
-    else
-    {
-      Serial.println("Ball will go STRAIGHT!");
-    }
+  float roll = euler.x() - initialRoll;
+  roll = roll > 180 ? roll - 360 : (roll < -180 ? roll + 360 : roll);
+  Serial.print("ROLL: ");
+  Serial.println(roll);
+  if (roll > 1.0) // Right threshold
+  {
+    digitalWrite(LED_RIGHT, HIGH);
+    delay(200);
+    digitalWrite(LED_RIGHT, LOW);
+    delay(200);
+    digitalWrite(LED_RIGHT, HIGH);
+    delay(200);
+    digitalWrite(LED_RIGHT, LOW);
+    delay(200);
+    digitalWrite(LED_RIGHT, HIGH);
+    delay(200);
+    digitalWrite(LED_RIGHT, LOW);
+  }
+  else if (roll < -1.0) // Left threshold
+  {
+    digitalWrite(LED_LEFT, HIGH);
+    delay(1000);
+    digitalWrite(LED_LEFT, LOW);
+    delay(200);
+    digitalWrite(LED_LEFT, HIGH);
+    delay(200);
+    digitalWrite(LED_LEFT, LOW);
+    delay(200);
+    digitalWrite(LED_LEFT, HIGH);
+    delay(200);
+    digitalWrite(LED_LEFT, LOW);
+  }
+  else
+  {
+    digitalWrite(LED_STRAIGHT, HIGH);
+    delay(200);
+    digitalWrite(LED_STRAIGHT, LOW);
+    delay(200);
+    digitalWrite(LED_STRAIGHT, HIGH);
+    delay(200);
+    digitalWrite(LED_STRAIGHT, LOW);
+    delay(200);
+    digitalWrite(LED_STRAIGHT, HIGH);
+    delay(200);
+    digitalWrite(LED_STRAIGHT, LOW);
+  }
 
-    */
-    hallInterrupt = false;
-
-    // feedback about roll X
-    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-
-    // here vibration motor (or managed by message via UART?)
-    if(HAPTIC_FEEDBACK){
-      analogWrite(VIBRATOR, 200);
-      delay(200);
-      analogWrite(VIBRATOR, 0);
-    }
-
-
-    float roll = euler.x() - initialRoll;
-    roll = roll > 180 ? roll - 360 : (roll < -180 ? roll + 360 : roll);
-    Serial.print("ROLL: ");
-    Serial.println(roll);
-    if (roll > 1.0) // Right threshold
-    {
-      Serial.println("DESTRA");
-      digitalWrite(LED_RIGHT, HIGH);
-      delay(200);
-      digitalWrite(LED_RIGHT, LOW);
-      delay(200);
-      digitalWrite(LED_RIGHT, HIGH);
-      delay(200);
-      digitalWrite(LED_RIGHT, LOW);
-      delay(200);
-      digitalWrite(LED_RIGHT, HIGH);
-      delay(200);
-      digitalWrite(LED_RIGHT, LOW);
-    }
-    else if (roll < -1.0) // Left threshold
-    {
-      Serial.println("SINISTRA");
-      digitalWrite(LED_LEFT, HIGH);
-      delay(1000);
-      digitalWrite(LED_LEFT, LOW);
-      delay(200);
-      digitalWrite(LED_LEFT, HIGH);
-      delay(200);
-      digitalWrite(LED_LEFT, LOW);
-      delay(200);
-      digitalWrite(LED_LEFT, HIGH);
-      delay(200);
-      digitalWrite(LED_LEFT, LOW);
-    }
-    else
-    {
-      digitalWrite(LED_STRAIGHT, HIGH);
-      delay(200);
-      digitalWrite(LED_STRAIGHT, LOW);
-      delay(200);
-      digitalWrite(LED_STRAIGHT, HIGH);
-      delay(200);
-      digitalWrite(LED_STRAIGHT, LOW);
-      delay(200);
-      digitalWrite(LED_STRAIGHT, HIGH);
-      delay(200);
-      digitalWrite(LED_STRAIGHT, LOW);
-    }
-
-
-    delay(2000);
-    Serial.println("HIT 0");
+  delay(2000);
 }
 
 void recalibrateYawReference()
@@ -244,7 +205,6 @@ void IMUcalibration(Adafruit_BNO055 bno)
 {
   while (!isIMUCalibrated) // Calibrate IMU
   {
-    blinkLedFastNonBlocking();
     uint8_t system, gyro, accel, mag = 0;
     bno.getCalibration(&system, &gyro, &accel, &mag);
 
@@ -279,18 +239,6 @@ void clearEEPROM()
     EEPROM.write(i, 0); // Write 0 to each address
   }
   Serial.println("EEPROM cleared!");
-}
-
-// Function to blink LED fast non-blocking
-void blinkLedFastNonBlocking(){
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - blinkLedFastNonBlockingPreviousMillis < BLINK_INTERVAL)
-    return;
-
-  blinkLedFastNonBlockingPreviousMillis = currentMillis;
-  digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-  
 }
 
 void printCalibration(uint8_t system, uint8_t gyro, uint8_t accel, uint8_t mag)
@@ -373,39 +321,15 @@ void sendData(Adafruit_BNO055 bno)
 {
   // Fetch orientation data
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  float roll = euler.x() - initialRoll;  // Roll (angle of rotation about x-axis)
+  float roll = euler.x() - initialRoll;   // Roll (angle of rotation about x-axis)
   float pitch = euler.y() - initialPitch; // Pitch (angle of rotation about y-axis)
-  float yaw = euler.z() - initialYaw;   // Yaw (angle of rotation about z-axis)
+  float yaw = euler.z() - initialYaw;     // Yaw (angle of rotation about z-axis)
 
   // Fetch acceleration data
   imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   float ax = accel.x(); // Acceleration in x-axis
   float ay = accel.y(); // Acceleration in y-axis
   float az = accel.z(); // Acceleration in z-axis
-
-  // Fetch gyroscope data (for angular velocity)
-  imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-  float gx = gyro.x(); // Angular velocity about x-axis
-  float gy = gyro.y(); // Angular velocity about y-axis
-  float gz = gyro.z(); // Angular velocity about z-axis
-
-  // Calculate vertical movement (Z-axis integration)
-  static float prevAz = 0.0;
-  static unsigned long prevTime = 0;
-  unsigned long currentTime = millis();
-  float dt = (currentTime - prevTime) / 1000.0; // Convert ms to seconds
-  float verticalVelocity = 0.0;
-
-  if (prevTime > 0)
-  {
-    verticalVelocity += (az + prevAz) / 2.0 * dt; // Trapezoidal integration
-  }
-
-  prevAz = az;
-  prevTime = currentTime;
-
-  // Approximate swing power (combining acceleration and velocity)
-  float swingPower = sqrt(ax * ax + ay * ay + az * az) * verticalVelocity;
 
   // Output results
   Serial.print("Roll ");
@@ -420,10 +344,6 @@ void sendData(Adafruit_BNO055 bno)
   Serial.print(ay);
   Serial.print(",");
   Serial.println(az);
-  Serial.print("VerticalVelocity ");
-  Serial.println(verticalVelocity);
-  Serial.print("SwingPower ");
-  Serial.println(swingPower);
 }
 
 void setup(void)
@@ -431,7 +351,7 @@ void setup(void)
   pinMode(BUTTON_PIN, INPUT_PULLUP); // Button
   pinMode(LED_PIN, OUTPUT);          // Led
   pinMode(HALL_SENSOR_PIN, INPUT);   // Hall sensor
-  
+
   // high club part
   pinMode(BUTTON_TRIGGER, INPUT_PULLUP);
   pinMode(RIBBON_SENSOR, INPUT);
@@ -446,7 +366,6 @@ void setup(void)
   attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), hitDetected, LOW);
 
   Serial.begin(115200);
-  Serial.println("CIAO");
 
   while (!Serial)
     delay(10); // wait for serial port to open!
@@ -481,36 +400,22 @@ void setup(void)
   Serial.println("Ready!");
 }
 
-
-
 void loop(void)
 {
-  if (!isIMUCalibrated){
+  // Working Status LED
+  unsigned long currentMillis = millis();
+  if (currentMillis - blinkLedFastNonBlockingPreviousMillis >= BLINK_INTERVAL)
+  {
+    blinkLedFastNonBlockingPreviousMillis = currentMillis;
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  }
+
+  if (!isIMUCalibrated)
+  {
     IMUcalibration(bno);
   }
 
   sendData(bno);
-
-  /* Button to DEBUG accelerometer, gyroscope and linear acceleration data
-  
-    Press the button to print accelerometer, gyroscope and linear acceleration data
-    and know the current status of the sensor
-  
-  // if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > debugButtonDebounceDelay))
-  // {
-  //   debugButtonLastDebounceTime = millis();
-
-  //   // Process sensor events
-  //   sensors_event_t angVelocityData, linearAccelData, accelerometerData;
-  //   bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
-  //   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-  //   bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
-
-  //   // Print data
-  //   printEvent(&linearAccelData);
-  //   printEvent(&angVelocityData);
-  //   printEvent(&accelerometerData);
-  // }*/
 
   // Button to recalibrate reference
   if (digitalRead(BUTTON_PIN) == LOW && (millis() - debugButtonLastDebounceTime > 500))
@@ -531,37 +436,60 @@ void loop(void)
   detectClubMovement(accelY, accelZ);
 
   // Hit the ball
-  if(hallInterrupt){
+  if (hallInterrupt)
+  {
     detectBallHit(bno);
   }
-  Serial.println(analogRead(RIBBON_SENSOR));
+  Serial.println("HIT 0");
+
   // high club part
-  if(digitalRead(BUTTON_TRIGGER) == HIGH){
+  if (digitalRead(BUTTON_TRIGGER) == HIGH)
+  {
     float ribbon_v = analogRead(RIBBON_SENSOR) - RIBBON_CENTRAL_VALUE;
-      if (ribbon_v > RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE){
-        digitalWrite(LED_UP, HIGH);
-        digitalWrite(LED_CENTER, LOW);
-        digitalWrite(LED_DOWN, LOW);
+    if (ribbon_v > RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE)
+    {
+      digitalWrite(LED_UP, HIGH);
+      digitalWrite(LED_CENTER, LOW);
+      digitalWrite(LED_DOWN, LOW);
+    }
+    else if (ribbon_v < -RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE)
+    {
 
-      }
-      else if (ribbon_v < -RIBBON_CENTRAL_VALUE * RIBBON_TOLERANCE){
-
-        digitalWrite(LED_UP, LOW);
-        digitalWrite(LED_CENTER, LOW);
-        digitalWrite(LED_DOWN, HIGH);
-      } else {
-        digitalWrite(LED_UP, LOW);
-        digitalWrite(LED_CENTER, HIGH);
-        digitalWrite(LED_DOWN, LOW);
-      }
-  } else {
+      digitalWrite(LED_UP, LOW);
+      digitalWrite(LED_CENTER, LOW);
+      digitalWrite(LED_DOWN, HIGH);
+    }
+    else
+    {
+      digitalWrite(LED_UP, LOW);
+      digitalWrite(LED_CENTER, HIGH);
+      digitalWrite(LED_DOWN, LOW);
+    }
+  }
+  else
+  {
     digitalWrite(LED_UP, LOW);
-        digitalWrite(LED_CENTER, LOW);
-        digitalWrite(LED_DOWN, LOW);
-      
+    digitalWrite(LED_CENTER, LOW);
+    digitalWrite(LED_DOWN, LOW);
   }
 
+  if (HAPTIC_FEEDBACK)
+  {
+    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+    float yaw = euler.z() - initialYaw; // Yaw (angle of rotation about z-axis)
+
+    if (yaw < -100)
+    {
+      analogWrite(VIBRATOR, 200);
+      delay(100);
+      analogWrite(VIBRATOR, 0);
+      delay(100);
+    }
+    else
+    {
+      analogWrite(VIBRATOR, 0);
+    }
+  }
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }
-
