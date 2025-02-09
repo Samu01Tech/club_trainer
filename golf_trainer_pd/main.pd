@@ -1,4 +1,4 @@
-#N canvas -321 -1436 2550 1380 10;
+#N canvas -318 -1436 2550 1380 10;
 #X msg 359 88 close;
 #X msg 301 88 devices;
 #X floatatom 408 64 5 0 0 0 - - - 0;
@@ -34,7 +34,7 @@
 #X obj 1584 116 bang;
 #X obj 1423 281 30 100;
 #X obj 1481 282 r swing_position;
-#X obj 22 33 cnv 16 185 48 empty empty ClubTrainer 16 24 0 24 #ff8300 #404040 0;
+#X obj 22 33 cnv 16 185 48 empty empty GolfTrainer 16 24 0 24 #ff8300 #404040 0;
 #X obj 331 791 packOSC;
 #X obj 331 910 netsend -u -b;
 #X obj 380 857 loadbang;

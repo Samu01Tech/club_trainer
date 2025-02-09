@@ -1,5 +1,5 @@
 /* 
-* ClubTrainer Processing sketch
+* GolfTrainer Processing sketch
 *
 * Author: Samuele Mazzei
 * Date: 11/09/2019
@@ -126,7 +126,7 @@ void draw() {
   textSize(28);
   textAlign(CENTER);
   fill(FOREGROUND_COLOR);
-  text("ClubTrainer", WINDOW_WIDTH/2, 50);
+  text("GolfTrainer", WINDOW_WIDTH/2, 50);
 
   // Display the list of last 5 values
   displayValueTable();
