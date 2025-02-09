@@ -60,7 +60,8 @@ bool hallInterrupt = false;
 
 void hitDetected()
 {
-  hallInterrupt = true;
+  if(digitalRead(BUTTON_TRIGGER) == LOW)
+    hallInterrupt = true;
 }
 
 void detectClubMovement(float accelY, float accelZ)
@@ -111,7 +112,7 @@ void detectBallHit(Adafruit_BNO055 bno)
   roll = roll > 180 ? roll - 360 : (roll < -180 ? roll + 360 : roll);
   Serial.print("ROLL: ");
   Serial.println(roll);
-  if (roll > 1.0) // Right threshold
+  if (roll > 7.0) // Right threshold
   {
     digitalWrite(LED_RIGHT, HIGH);
     delay(200);
@@ -125,7 +126,7 @@ void detectBallHit(Adafruit_BNO055 bno)
     delay(200);
     digitalWrite(LED_RIGHT, LOW);
   }
-  else if (roll < -1.0) // Left threshold
+  else if (roll < -7.0) // Left threshold
   {
     digitalWrite(LED_LEFT, HIGH);
     delay(1000);

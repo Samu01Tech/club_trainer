@@ -28,8 +28,8 @@ int row_2 = 450;
 
 ArrayList<String> valueList;
 
-final int WINDOW_WIDTH = 1000;
-final int WINDOW_HEIGHT = 700;
+final int WINDOW_WIDTH = 1500;
+final int WINDOW_HEIGHT = 1000;
 
 int BACKGROUND_COLOR = #FFFCF0;
 int FOREGROUND_COLOR = #100F0F;
@@ -44,7 +44,8 @@ int MAX_LAUNCH_ANGLE = 50;
 int MIN_LAUNCH_ANGLE = -50;
 
 void setup() {
-  size(1000,700);
+  //size(1500,1000);
+  fullScreen();
   
   oscP5 = new OscP5(this,32000); /* start oscP5, listening for incoming messages at port 12000 */
   myRemoteLocation = new NetAddress("127.0.0.1",12000);
@@ -88,7 +89,7 @@ void setup() {
       .setColorBackground(UI_COLOR);
      
     launch_angle = cp5.addKnob("Launch Angle")  // Define the knob function name
-    .setPosition(200, row_2)  // Knob position
+    .setPosition(WINDOW_WIDTH/4, row_2)  // Knob position
     .setSize(200, 200)  // Knob size
     .setRange(MIN_LAUNCH_ANGLE, MAX_LAUNCH_ANGLE)  // Set knob range to -50 to 50 degrees
     .setValue(0)  // Initial value at the center (0 degrees)
@@ -100,7 +101,7 @@ void setup() {
 
 
     launch_power = cp5.addSlider("Launch Power")
-      .setPosition(450, row_2)
+      .setPosition(7 * WINDOW_WIDTH/10, row_2)
      .setSize(50,200)
      .setRange(0, 100)
      .setValue(0)
